@@ -163,7 +163,7 @@ mod tests {
         // Test with password that has padding but trimmed length < 8
         let req = RegisterRequest {
             username: "testuser".to_string(),
-            password: "   a   ".to_string(),
+            password: format!("{}a{}", " ".repeat(3), " ".repeat(3)),
         };
         let res = register(State(state.clone()), Json(req)).await;
         assert!(res.is_err());
