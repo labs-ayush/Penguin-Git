@@ -191,6 +191,11 @@ pub async fn remove_member(
             "Only members can modify workspace membership".into(),
         ));
     }
+    if membership_info.role != Some("owner".to_string()) {
+        return Err(ApiError::Forbidden(
+            "Only owners can remove members from this workspace".into(),
+        ));
+    }
     if auth_user.id == user_id {
         return Err(ApiError::BadRequest(
             "Cannot remove yourself from workspace".into(),
@@ -286,6 +291,11 @@ mod tests {
         assert_eq!(
             ApiError::Forbidden("You are not a member of this workspace".into()).to_string(),
             "Forbidden: You are not a member of this workspace"
+        );
+        assert_eq!(
+            ApiError::Forbidden("Only owners can remove members from this workspace".into())
+                .to_string(),
+            "Forbidden: Only owners can remove members from this workspace"
         );
     }
 
