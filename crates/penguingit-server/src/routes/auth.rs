@@ -39,13 +39,13 @@ pub async fn register(
         ));
     }
 
-    if payload.password.len() < 8 {
+    if password.len() < 8 {
         return Err(ApiError::BadRequest(
             "Password must be at least 8 characters long".into(),
         ));
     }
 
-    let password_hash = hash_password(&payload.password)?;
+    let password_hash = hash_password(password)?;
 
     let user = sqlx::query_as::<_, User>(
         "INSERT INTO users (username, password_hash)
@@ -78,6 +78,7 @@ pub async fn login(
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<AuthResponse>, ApiError> {
     let username = payload.username.trim();
+    let password = payload.password.trim();
     let user = sqlx::query_as::<_, User>(
         "SELECT id, username, password_hash, created_at FROM users WHERE username = $1",
     )
@@ -86,7 +87,7 @@ pub async fn login(
     .await?
     .ok_or_else(|| ApiError::Unauthorized("Invalid username or password".into()))?;
 
-    if !verify_password(&payload.password, &user.password_hash) {
+    if !verify_password(password, &user.password_hash) {
         return Err(ApiError::Unauthorized(
             "Invalid username or password".into(),
         ));
@@ -151,6 +152,18 @@ mod tests {
         let req = RegisterRequest {
             username: "testuser".to_string(),
             password: "s".repeat(5),
+        };
+        let res = register(State(state.clone()), Json(req)).await;
+        assert!(res.is_err());
+        assert_eq!(
+            res.unwrap_err().to_string(),
+            "Bad Request: Password must be at least 8 characters long"
+        );
+
+        // Test with password that has padding but trimmed length < 8
+        let req = RegisterRequest {
+            username: "testuser".to_string(),
+            password: "   a   ".to_string(),
         };
         let res = register(State(state.clone()), Json(req)).await;
         assert!(res.is_err());
