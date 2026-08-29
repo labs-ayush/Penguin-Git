@@ -3,6 +3,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::core::branch::reject_option_like;
 use crate::core::exec::{run_git, run_git_raw_with_env, GitError};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +76,7 @@ pub fn interactive_rebase(
     base_ref: &str,
     todo_items: &[RebaseTodoItem],
 ) -> Result<String, GitError> {
+    reject_option_like(base_ref)?;
     let editor_exe = find_sequence_editor_executable()?;
 
     // Create a temporary file to store the customized todo list
@@ -186,5 +188,17 @@ mod tests {
         let log = repo.git(&["log", "--oneline"]);
         assert!(log.contains("Commit 4"));
         assert!(log.contains("Commit 3"));
+    }
+
+    #[test]
+    fn interactive_rebase_rejects_option_like_base_ref() {
+        let repo = FixtureRepo::new();
+        let res = interactive_rebase(repo.path(), "--base-ref-starts-with-dash", &[]);
+        assert!(res.is_err());
+        if let Err(GitError::CommandFailed { stderr, .. }) = res {
+            assert!(stderr.contains("refusing to pass"));
+        } else {
+            panic!("Expected GitError::CommandFailed");
+        }
     }
 }
