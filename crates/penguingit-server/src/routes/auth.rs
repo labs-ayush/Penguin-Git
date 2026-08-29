@@ -133,7 +133,10 @@ mod tests {
     #[tokio::test]
     async fn test_register_enforces_password_length() {
         let pool = PgPool::connect_lazy("postgres://localhost/dummy").unwrap();
-        let state = Arc::new(AppState { db: pool });
+        let state = Arc::new(AppState {
+            db: pool,
+            rate_limiter: crate::auth::RateLimiter::new(5, std::time::Duration::from_secs(10)),
+        });
 
         // Test with empty password
         let req = RegisterRequest {

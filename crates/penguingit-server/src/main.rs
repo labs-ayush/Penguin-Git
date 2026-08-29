@@ -13,6 +13,7 @@ mod routes;
 
 pub struct AppState {
     pub db: sqlx::PgPool,
+    pub rate_limiter: auth::RateLimiter,
 }
 
 #[tokio::main]
@@ -33,7 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Running database migrations...");
     db::run_migrations(&pool).await?;
 
-    let state = Arc::new(AppState { db: pool });
+    let state = Arc::new(AppState {
+        db: pool,
+        rate_limiter: auth::RateLimiter::new(5, std::time::Duration::from_secs(10)),
+    });
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -46,7 +50,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "/api/auth/register",
             axum::routing::post(routes::auth::register),
         )
-        .route("/api/auth/login", axum::routing::post(routes::auth::login))
+        .route(
+            "/api/auth/login",
+            axum::routing::post(routes::auth::login)
+                .layer(axum::middleware::from_fn_with_state(
+                    state.clone(),
+                    auth::rate_limit_middleware,
+                )),
+        )
         .route(
             "/api/auth/logout",
             axum::routing::post(routes::auth::logout),
