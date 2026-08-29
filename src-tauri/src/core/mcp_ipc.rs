@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 use tokio::net::UnixListener;
 
-use crate::core::mcp_event::{get_event_bus, McpMutationEvent, UNIX_SOCKET_PATH};
+use crate::core::mcp_event::{get_event_bus, get_unix_socket_path, McpMutationEvent};
 use crate::core::mcp_server::PenguinMcpServer;
 use crate::core::repo::AppState;
 
@@ -41,9 +41,19 @@ pub fn start_mcp_event_listeners(app_handle: AppHandle) {
     let app_socket = Arc::clone(&app);
     tauri::async_runtime::spawn(async move {
         // Clean up any existing socket file from previous runs
-        let _ = std::fs::remove_file(UNIX_SOCKET_PATH);
+        let socket_path = get_unix_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
 
-        if let Ok(listener) = UnixListener::bind(UNIX_SOCKET_PATH) {
+        if let Ok(listener) = UnixListener::bind(&socket_path) {
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Ok(metadata) = std::fs::metadata(&socket_path) {
+                    let mut perms = metadata.permissions();
+                    perms.set_mode(0o600); // Read/write only for owner.
+                    let _ = std::fs::set_permissions(&socket_path, perms);
+                }
+            }
             loop {
                 if let Ok((stream, _)) = listener.accept().await {
                     let app_conn = Arc::clone(&app_socket);
