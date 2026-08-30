@@ -61,8 +61,8 @@ pub async fn check_patch_access(
         }
     }
 
-    Err(ApiError::Forbidden(
-        "You are not authorized to access this patch".into(),
+    Err(ApiError::NotFound(
+        "Patch not found".into(),
     ))
 }
 
@@ -190,8 +190,8 @@ mod tests {
     #[test]
     fn test_patch_authorization_check_contract() {
         assert_eq!(
-            ApiError::Forbidden("You are not authorized to access this patch".into()).to_string(),
-            "Forbidden: You are not authorized to access this patch"
+            ApiError::NotFound("Patch not found".into()).to_string(),
+            "Not Found: Patch not found"
         );
         assert_eq!(
             ApiError::Forbidden("You are not a member of this workspace".into()).to_string(),
