@@ -39,13 +39,13 @@ pub async fn register(
         ));
     }
 
-    if payload.password.len() < 8 {
+    if password.len() < 8 {
         return Err(ApiError::BadRequest(
             "Password must be at least 8 characters long".into(),
         ));
     }
 
-    let password_hash = hash_password(&payload.password)?;
+    let password_hash = hash_password(password)?;
 
     let user = sqlx::query_as::<_, User>(
         "INSERT INTO users (username, password_hash)
@@ -151,6 +151,18 @@ mod tests {
         let req = RegisterRequest {
             username: "testuser".to_string(),
             password: "s".repeat(5),
+        };
+        let res = register(State(state.clone()), Json(req)).await;
+        assert!(res.is_err());
+        assert_eq!(
+            res.unwrap_err().to_string(),
+            "Bad Request: Password must be at least 8 characters long"
+        );
+
+        // Test with password that is short after trimming
+        let req = RegisterRequest {
+            username: "testuser".to_string(),
+            password: "   foo   ".to_string(),
         };
         let res = register(State(state.clone()), Json(req)).await;
         assert!(res.is_err());
