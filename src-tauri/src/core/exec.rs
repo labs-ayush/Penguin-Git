@@ -17,6 +17,9 @@ pub enum GitError {
 
     #[error("git produced invalid UTF-8 output: {0}")]
     InvalidUtf8(#[from] std::string::FromUtf8Error),
+
+    #[error("validation error: {0}")]
+    ValidationError(String),
 }
 
 /// A completed git invocation, including runs that exited non-zero.

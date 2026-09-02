@@ -86,12 +86,27 @@ pub fn interactive_rebase(
 
     let mut content = String::new();
     for item in todo_items {
-        content.push_str(&format!(
-            "{} {} {}\n",
-            item.action.trim(),
-            item.hash.trim(),
-            item.message.trim()
-        ));
+        let action = item.action.trim();
+        let hash = item.hash.trim();
+
+        if !matches!(
+            action,
+            "pick" | "reword" | "edit" | "squash" | "fixup" | "drop"
+        ) {
+            return Err(GitError::ValidationError(format!(
+                "Invalid rebase action: {}",
+                action
+            )));
+        }
+
+        if hash.len() != 40 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(GitError::ValidationError(format!(
+                "Invalid commit hash: {}",
+                hash
+            )));
+        }
+
+        content.push_str(&format!("{} {} {}\n", action, hash, item.message.trim()));
     }
 
     fs::write(temp_file.path(), &content).map_err(GitError::Spawn)?;
@@ -186,5 +201,41 @@ mod tests {
         let log = repo.git(&["log", "--oneline"]);
         assert!(log.contains("Commit 4"));
         assert!(log.contains("Commit 3"));
+    }
+
+    #[test]
+    fn interactive_rebase_validation_fails_for_invalid_action() {
+        let repo = FixtureRepo::new();
+        let todo_items = vec![RebaseTodoItem {
+            action: "invalid_action".into(),
+            hash: "a".repeat(40),
+            message: "Some commit".into(),
+        }];
+        let res = interactive_rebase(repo.path(), "HEAD~1", &todo_items);
+        assert!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("validation error: Invalid rebase action: invalid_action"),
+            "got: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn interactive_rebase_validation_fails_for_invalid_hash() {
+        let repo = FixtureRepo::new();
+        let todo_items = vec![RebaseTodoItem {
+            action: "pick".into(),
+            hash: "not-40-chars".into(),
+            message: "Some commit".into(),
+        }];
+        let res = interactive_rebase(repo.path(), "HEAD~1", &todo_items);
+        assert!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("validation error: Invalid commit hash: not-40-chars"),
+            "got: {}",
+            err_msg
+        );
     }
 }
