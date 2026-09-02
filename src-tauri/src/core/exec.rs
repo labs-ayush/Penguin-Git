@@ -72,13 +72,7 @@ pub fn run_git_raw_with_env(
     args: &[&str],
     envs: &[(&str, &std::ffi::OsStr)],
 ) -> Result<GitOutput, GitError> {
-    let mut cmd = Command::new("git");
-    cmd.current_dir(cwd)
-        .args(args)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_ASKPASS", "")
-        .env("SSH_ASKPASS", "")
-        .env("SSH_ASKPASS_REQUIRE", "never");
+    let mut cmd = create_git_command(cwd, args);
 
     for (k, v) in envs {
         cmd.env(k, v);
@@ -91,6 +85,101 @@ pub fn run_git_raw_with_env(
         stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
         exit_code: output.status.code(),
     })
+}
+
+/// Helper function to create a git Command with filtered/whitelisted environment variables.
+fn create_git_command(cwd: &Path, args: &[&str]) -> Command {
+    let mut cmd = Command::new("git");
+    cmd.current_dir(cwd).args(args);
+    cmd.env_clear();
+
+    const WHITELIST: &[&str] = &[
+        "path",
+        "home",
+        "userprofile",
+        "homedrive",
+        "homepath",
+        "user",
+        "username",
+        "logname",
+        "ssh_auth_sock",
+        "ssh_askpass",
+        "git_askpass",
+        "git_terminal_prompt",
+        "ssh_askpass_require",
+        "git_author_name",
+        "git_author_email",
+        "git_author_date",
+        "git_committer_name",
+        "git_committer_email",
+        "git_committer_date",
+        "git_config_nosystem",
+        "git_config_parameters",
+        "git_dir",
+        "git_work_tree",
+        "git_index_file",
+        "git_object_directory",
+        "git_alternate_object_directories",
+        "git_common_dir",
+        "git_exec_path",
+        "git_template_dir",
+        "git_namespace",
+        "lang",
+        "lc_all",
+        "lc_ctype",
+        "lc_messages",
+        "lc_collate",
+        "lc_numeric",
+        "lc_time",
+        "tz",
+        "term",
+        "http_proxy",
+        "https_proxy",
+        "no_proxy",
+        "all_proxy",
+        "git_http_user_agent",
+        "git_trace",
+        "git_trace_pack_access",
+        "git_trace_packet",
+        "git_trace_performance",
+        "git_trace_setup",
+        "git_trace_shallow",
+        "git_ssh",
+        "git_ssh_command",
+        "git_ssh_variant",
+        "git_ssl_cainfo",
+        "git_ssl_capath",
+        "git_ssl_no_verify",
+        "git_ssl_cert",
+        "git_ssl_key",
+        "git_flush",
+        "git_curl_verbose",
+        "systemroot",
+        "systemdrive",
+        "windir",
+        "comspec",
+        "pathext",
+        "temp",
+        "tmp",
+        "appdata",
+        "localappdata",
+    ];
+
+    for (key, val) in std::env::vars_os() {
+        if let Some(key_str) = key.to_str() {
+            let key_lower = key_str.to_lowercase();
+            if WHITELIST.contains(&key_lower.as_str()) {
+                cmd.env(key, val);
+            }
+        }
+    }
+
+    cmd.env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_ASKPASS", "")
+        .env("SSH_ASKPASS", "")
+        .env("SSH_ASKPASS_REQUIRE", "never");
+
+    cmd
 }
 
 /// Runs `git <args>` piping `stdin_data` to the child's stdin, returns stdout
@@ -124,16 +213,10 @@ pub fn run_git_raw_with_stdin(
     use std::io::Write;
     use std::process::Stdio;
 
-    let mut child = Command::new("git")
-        .current_dir(cwd)
-        .args(args)
+    let mut child = create_git_command(cwd, args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_ASKPASS", "")
-        .env("SSH_ASKPASS", "")
-        .env("SSH_ASKPASS_REQUIRE", "never")
         .spawn()?;
 
     if let Some(mut stdin) = child.stdin.take() {
@@ -341,5 +424,32 @@ mod tests {
 
         assert!(!output.success());
         assert!(!output.stderr.is_empty());
+    }
+
+    #[test]
+    fn run_git_does_not_leak_unwhitelisted_env_vars() {
+        let repo = FixtureRepo::new();
+        std::env::set_var("PENGUIN_GIT_SECRET_TOKEN", "super-secret-value");
+
+        let probe = run_git(
+            repo.path(),
+            &[
+                "-c",
+                "alias.probe=!echo secret=[$PENGUIN_GIT_SECRET_TOKEN] path=[$PATH]",
+                "probe",
+            ],
+        )
+        .expect("alias probe should run");
+
+        assert!(
+            probe.contains("secret=[]"),
+            "un-whitelisted secret was leaked! got: {probe}"
+        );
+        assert!(
+            !probe.contains("path=[]"),
+            "PATH was not passed through! got: {probe}"
+        );
+
+        std::env::remove_var("PENGUIN_GIT_SECRET_TOKEN");
     }
 }
