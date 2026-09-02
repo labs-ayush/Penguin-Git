@@ -15,7 +15,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-argon2 = "0.6"
+argon2 = { version = "0.6", features = ["password-hash", "rand_core"] }
 rand = "0.10"
 rand_core_06 = { package = "rand_core", version = "0.6", features = ["getrandom"] }
 hex = "0.4"
