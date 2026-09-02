@@ -2,6 +2,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use super::branch::reject_option_like;
 use super::exec::{run_git, GitError};
 
 /// Field separator inside one commit record.
@@ -83,6 +84,7 @@ pub struct CommitDetails {
 /// commit message can itself contain anything short of a NUL byte. Splitting
 /// the two concerns keeps both parses simple instead of one fragile one.
 pub fn get_commit_details(repo_path: &Path, hash: &str) -> Result<CommitDetails, GitError> {
+    reject_option_like(hash)?;
     let meta_raw = run_git(repo_path, &["show", "-s", COMMIT_DETAIL_FORMAT, hash])?;
     let mut meta = parse_commit_detail_meta(&meta_raw).ok_or_else(|| GitError::CommandFailed {
         exit_code: None,
@@ -977,5 +979,12 @@ mod tests {
             .expect("after.txt should appear as a full addition");
         assert_eq!(added.insertions, Some(2));
         assert_eq!(added.deletions, Some(0));
+    }
+
+    #[test]
+    fn get_commit_details_refuses_option_like_hashes() {
+        let repo = FixtureRepo::new();
+        assert!(get_commit_details(repo.path(), "--pretty").is_err());
+        assert!(get_commit_details(repo.path(), "-s").is_err());
     }
 }
