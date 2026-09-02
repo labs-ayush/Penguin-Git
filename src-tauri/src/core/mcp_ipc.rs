@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 use tokio::net::UnixListener;
 
-use crate::core::mcp_event::{get_event_bus, McpMutationEvent, get_mcp_socket_path};
+use crate::core::mcp_event::{get_event_bus, get_mcp_socket_path, McpMutationEvent};
 use crate::core::mcp_server::PenguinMcpServer;
 use crate::core::repo::AppState;
 
