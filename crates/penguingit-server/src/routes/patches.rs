@@ -61,9 +61,7 @@ pub async fn check_patch_access(
         }
     }
 
-    Err(ApiError::NotFound(
-        "Patch not found".into(),
-    ))
+    Err(ApiError::NotFound("Patch not found".into()))
 }
 
 pub async fn create_patch(
