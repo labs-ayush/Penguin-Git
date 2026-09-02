@@ -89,7 +89,10 @@ pub fn interactive_rebase(
         let action = item.action.trim();
         let hash = item.hash.trim();
 
-        if !matches!(action, "pick" | "reword" | "edit" | "squash" | "fixup" | "drop") {
+        if !matches!(
+            action,
+            "pick" | "reword" | "edit" | "squash" | "fixup" | "drop"
+        ) {
             return Err(GitError::ValidationError(format!(
                 "Invalid rebase action: {}",
                 action
@@ -103,12 +106,7 @@ pub fn interactive_rebase(
             )));
         }
 
-        content.push_str(&format!(
-            "{} {} {}\n",
-            action,
-            hash,
-            item.message.trim()
-        ));
+        content.push_str(&format!("{} {} {}\n", action, hash, item.message.trim()));
     }
 
     fs::write(temp_file.path(), &content).map_err(GitError::Spawn)?;
@@ -216,7 +214,11 @@ mod tests {
         let res = interactive_rebase(repo.path(), "HEAD~1", &todo_items);
         assert!(res.is_err());
         let err_msg = res.unwrap_err().to_string();
-        assert!(err_msg.contains("validation error: Invalid rebase action: invalid_action"), "got: {}", err_msg);
+        assert!(
+            err_msg.contains("validation error: Invalid rebase action: invalid_action"),
+            "got: {}",
+            err_msg
+        );
     }
 
     #[test]
@@ -230,6 +232,10 @@ mod tests {
         let res = interactive_rebase(repo.path(), "HEAD~1", &todo_items);
         assert!(res.is_err());
         let err_msg = res.unwrap_err().to_string();
-        assert!(err_msg.contains("validation error: Invalid commit hash: not-40-chars"), "got: {}", err_msg);
+        assert!(
+            err_msg.contains("validation error: Invalid commit hash: not-40-chars"),
+            "got: {}",
+            err_msg
+        );
     }
 }
