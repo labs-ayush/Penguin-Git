@@ -78,7 +78,7 @@ fn parse_diff_git_line(line: &str) -> Vec<String> {
     let mut current = String::new();
     let mut in_quotes = false;
     let mut escaped = false;
-    
+
     for c in content.chars() {
         if escaped {
             current.push(c);
@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn test_git_stage_hunk_path_traversal_validation() {
         let repo = FixtureRepo::new();
-        
+
         // 1. Path traversal via ".."
         let patch_traversal = [
             "diff --git a/test.txt b/../test.txt",
@@ -248,10 +248,14 @@ mod tests {
             "@@ -1,1 +1,1 @@",
             "-Line 1",
             "+Line 1 CHANGED",
-        ].join("\n");
+        ]
+        .join("\n");
         let result = git_stage_hunk(repo.path(), &patch_traversal);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Directory traversal references"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Directory traversal references"));
 
         // 2. Absolute path traversal
         let patch_absolute = [
@@ -261,10 +265,14 @@ mod tests {
             "@@ -1,1 +1,1 @@",
             "-Line 1",
             "+Line 1 CHANGED",
-        ].join("\n");
+        ]
+        .join("\n");
         let result = git_stage_hunk(repo.path(), &patch_absolute);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Absolute path references"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Absolute path references"));
 
         // 3. Windows absolute path
         let patch_windows = [
@@ -274,9 +282,13 @@ mod tests {
             "@@ -1,1 +1,1 @@",
             "-Line 1",
             "+Line 1 CHANGED",
-        ].join("\n");
+        ]
+        .join("\n");
         let result = git_stage_hunk(repo.path(), &patch_windows);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Windows path references"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Windows path references"));
     }
 }
