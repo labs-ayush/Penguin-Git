@@ -209,7 +209,7 @@ mod tests {
         let repo_path = Path::new(".");
         let res = init_submodule(repo_path, "-invalid");
         assert!(res.is_err());
-        
+
         let res = update_submodule(repo_path, "-invalid");
         assert!(res.is_err());
     }
