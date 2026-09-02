@@ -52,11 +52,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .route(
             "/api/auth/login",
-            axum::routing::post(routes::auth::login)
-                .layer(axum::middleware::from_fn_with_state(
-                    state.clone(),
-                    auth::rate_limit_middleware,
-                )),
+            axum::routing::post(routes::auth::login).layer(axum::middleware::from_fn_with_state(
+                state.clone(),
+                auth::rate_limit_middleware,
+            )),
         )
         .route(
             "/api/auth/logout",

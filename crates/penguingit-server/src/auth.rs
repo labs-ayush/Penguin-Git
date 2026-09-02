@@ -1,12 +1,3 @@
-use axum::{
-    extract::{ConnectInfo, State, Request},
-    middleware::Next,
-    response::Response,
-};
-use std::collections::HashMap;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
-use std::net::SocketAddr;
 use argon2::{
     password_hash::{
         rand_core::{OsRng, RngCore},
@@ -15,10 +6,19 @@ use argon2::{
     Argon2,
 };
 use axum::{
+    extract::{ConnectInfo, Request, State},
+    middleware::Next,
+    response::Response,
+};
+use axum::{
     extract::{FromRef, FromRequestParts},
     http::{header, request::Parts},
 };
+use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use crate::{error::ApiError, AppState};
