@@ -29,6 +29,8 @@ pub fn delete_branch(
     name: String,
     force: bool,
 ) -> Result<(), String> {
+    branch::reject_option_like(&name).map_err(to_ipc_error)?;
+
     let p = Path::new(&repo_path);
     let target_hash = run_git(p, &["rev-parse", &name])
         .unwrap_or_default()
