@@ -3,6 +3,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use super::branch::reject_option_like;
 use super::exec::{run_git, GitError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -130,12 +131,14 @@ pub fn get_submodules(repo_path: &Path) -> Result<Vec<SubmoduleStatus>, GitError
 
 /// Initializes a submodule in `repo_path` (`git submodule init <path>`).
 pub fn init_submodule(repo_path: &Path, submodule_path: &str) -> Result<(), GitError> {
+    reject_option_like(submodule_path)?;
     run_git(repo_path, &["submodule", "init", "--", submodule_path])?;
     Ok(())
 }
 
 /// Updates a submodule in `repo_path` (`git submodule update <path>`).
 pub fn update_submodule(repo_path: &Path, submodule_path: &str) -> Result<(), GitError> {
+    reject_option_like(submodule_path)?;
     run_git(repo_path, &["submodule", "update", "--", submodule_path])?;
     Ok(())
 }
@@ -199,5 +202,15 @@ mod tests {
         assert_eq!(s4.path, "vendor/conflict");
         assert!(s4.initialized);
         assert!(s4.has_changes);
+    }
+
+    #[test]
+    fn test_init_submodule_rejects_option_like() {
+        let repo_path = Path::new(".");
+        let res = init_submodule(repo_path, "-invalid");
+        assert!(res.is_err());
+
+        let res = update_submodule(repo_path, "-invalid");
+        assert!(res.is_err());
     }
 }
