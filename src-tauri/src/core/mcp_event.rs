@@ -8,7 +8,41 @@ pub struct McpMutationEvent {
     pub repo_path: String,
 }
 
-pub const UNIX_SOCKET_PATH: &str = "/tmp/penguingit-mcp.sock";
+pub fn get_mcp_socket_path() -> std::path::PathBuf {
+    use std::fs::DirBuilder;
+    #[cfg(unix)]
+    use std::os::unix::fs::DirBuilderExt;
+
+    // 1. Try XDG_RUNTIME_DIR
+    if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
+        let path = std::path::PathBuf::from(runtime_dir);
+        if path.is_absolute() {
+            let socket_dir = path.join("penguingit");
+            let mut builder = DirBuilder::new();
+            builder.recursive(true);
+            #[cfg(unix)]
+            builder.mode(0o700);
+            if builder.create(&socket_dir).is_ok() {
+                return socket_dir.join("penguingit-mcp.sock");
+            }
+        }
+    }
+
+    // 2. Fallback to ~/.config/penguingit
+    let config_dir = std::env::var("XDG_CONFIG_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|_| std::env::var("HOME").map(|h| std::path::PathBuf::from(h).join(".config")))
+        .unwrap_or_else(|_| std::env::temp_dir())
+        .join("penguingit");
+
+    let mut builder = DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    builder.mode(0o700);
+    let _ = builder.create(&config_dir);
+
+    config_dir.join("mcp.sock")
+}
 
 static EVENT_BUS: OnceLock<broadcast::Sender<McpMutationEvent>> = OnceLock::new();
 
@@ -30,7 +64,8 @@ pub async fn notify_mcp_mutation(tool: &str, repo_path: &str) {
     let _ = get_event_bus().send(event.clone());
 
     // 2. Standalone IPC over Unix domain socket
-    if let Ok(mut stream) = tokio::net::UnixStream::connect(UNIX_SOCKET_PATH).await {
+    let socket_path = get_mcp_socket_path();
+    if let Ok(mut stream) = tokio::net::UnixStream::connect(&socket_path).await {
         use tokio::io::AsyncWriteExt;
         if let Ok(json) = serde_json::to_string(&event) {
             let mut data = json.into_bytes();
