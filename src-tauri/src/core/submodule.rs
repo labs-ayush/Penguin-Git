@@ -130,12 +130,14 @@ pub fn get_submodules(repo_path: &Path) -> Result<Vec<SubmoduleStatus>, GitError
 
 /// Initializes a submodule in `repo_path` (`git submodule init <path>`).
 pub fn init_submodule(repo_path: &Path, submodule_path: &str) -> Result<(), GitError> {
+    super::branch::reject_option_like(submodule_path)?;
     run_git(repo_path, &["submodule", "init", "--", submodule_path])?;
     Ok(())
 }
 
 /// Updates a submodule in `repo_path` (`git submodule update <path>`).
 pub fn update_submodule(repo_path: &Path, submodule_path: &str) -> Result<(), GitError> {
+    super::branch::reject_option_like(submodule_path)?;
     run_git(repo_path, &["submodule", "update", "--", submodule_path])?;
     Ok(())
 }
@@ -199,5 +201,12 @@ mod tests {
         assert_eq!(s4.path, "vendor/conflict");
         assert!(s4.initialized);
         assert!(s4.has_changes);
+    }
+
+    #[test]
+    fn test_submodule_option_rejection() {
+        let repo_path = Path::new(".");
+        assert!(init_submodule(repo_path, "-f").is_err());
+        assert!(update_submodule(repo_path, "--recursive").is_err());
     }
 }
