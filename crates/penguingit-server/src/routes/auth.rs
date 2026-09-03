@@ -27,6 +27,8 @@ pub struct AuthResponse {
     pub user: UserPublic,
 }
 
+static USERNAME_REGEX: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+
 pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RegisterRequest>,
@@ -36,6 +38,13 @@ pub async fn register(
     if username.is_empty() || password.is_empty() {
         return Err(ApiError::BadRequest(
             "Username and password required".into(),
+        ));
+    }
+
+    let re = USERNAME_REGEX.get_or_init(|| regex::Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap());
+    if !re.is_match(username) {
+        return Err(ApiError::BadRequest(
+            "Username can only contain alphanumeric characters, underscores, and hyphens".into(),
         ));
     }
 
@@ -170,6 +179,48 @@ mod tests {
         assert_eq!(
             res.unwrap_err().to_string(),
             "Bad Request: Password must be at least 8 characters long"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_register_validates_username_format() {
+        let pool = PgPool::connect_lazy("postgres://localhost/dummy").unwrap();
+        let state = Arc::new(AppState { db: pool });
+
+        // Test with invalid HTML in username
+        let req = RegisterRequest {
+            username: "bad<script>user</script>".to_string(),
+            password: "validpassword".to_string(),
+        };
+        let res = register(State(state.clone()), Json(req)).await;
+        assert!(res.is_err());
+        assert_eq!(
+            res.unwrap_err().to_string(),
+            "Bad Request: Username can only contain alphanumeric characters, underscores, and hyphens"
+        );
+
+        // Test with spaces in username
+        let req = RegisterRequest {
+            username: "user name".to_string(),
+            password: "validpassword".to_string(),
+        };
+        let res = register(State(state.clone()), Json(req)).await;
+        assert!(res.is_err());
+        assert_eq!(
+            res.unwrap_err().to_string(),
+            "Bad Request: Username can only contain alphanumeric characters, underscores, and hyphens"
+        );
+
+        // Test with valid username (fails at db phase, not validation phase)
+        let req = RegisterRequest {
+            username: "valid-user_123".to_string(),
+            password: "validpassword".to_string(),
+        };
+        let res = register(State(state.clone()), Json(req)).await;
+        assert!(res.is_err());
+        assert_ne!(
+            res.unwrap_err().to_string(),
+            "Bad Request: Username can only contain alphanumeric characters, underscores, and hyphens"
         );
     }
 }
