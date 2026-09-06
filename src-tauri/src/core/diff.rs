@@ -2,6 +2,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use super::branch::reject_option_like;
 use super::exec::{run_git, run_git_raw, GitError};
 use super::log::{parse_log, Commit};
 
@@ -35,6 +36,7 @@ pub fn diff_repo(repo_path: &Path, staged: bool) -> Result<String, GitError> {
 /// `--first-parent` on merges keeps the output to what the merge actually
 /// brought in, rather than the full combined diff against every parent.
 pub fn diff_commit(repo_path: &Path, hash: &str) -> Result<String, GitError> {
+    reject_option_like(hash)?;
     run_git(
         repo_path,
         &["show", "--no-color", "--first-parent", "--format=", hash],
@@ -45,6 +47,7 @@ pub fn diff_commit(repo_path: &Path, hash: &str) -> Result<String, GitError> {
 /// scoped with a pathspec, for a commit-detail view where a file list lets you
 /// drill into one file's change instead of the whole commit at once.
 pub fn diff_commit_file(repo_path: &Path, hash: &str, path: &str) -> Result<String, GitError> {
+    reject_option_like(hash)?;
     run_git(
         repo_path,
         &[
@@ -413,6 +416,20 @@ mod tests {
 
         assert_eq!(history.len(), 1);
         assert_eq!(history[0].subject, "Add a confusing filename");
+    }
+
+    #[test]
+    fn diff_commit_rejects_option_like_hash() {
+        let repo = FixtureRepo::new();
+        let res = diff_commit(repo.path(), "--help");
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn diff_commit_file_rejects_option_like_hash() {
+        let repo = FixtureRepo::new();
+        let res = diff_commit_file(repo.path(), "--help", "a.txt");
+        assert!(res.is_err());
     }
 
     // -- Diff selection ------------------------------------------------------
