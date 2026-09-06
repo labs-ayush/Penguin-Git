@@ -1,4 +1,4 @@
-use crate::core::mcp_event::get_unix_socket_path;
+use crate::core::mcp_event::get_mcp_socket_path;
 use crate::core::mcp_ipc;
 use serde::Serialize;
 
@@ -13,7 +13,7 @@ pub struct McpStatus {
 pub fn get_mcp_status() -> McpStatus {
     McpStatus {
         embedded_enabled: mcp_ipc::is_embedded_enabled(),
-        socket_path: get_unix_socket_path().to_string_lossy().into_owned(),
+        socket_path: get_mcp_socket_path().to_string_lossy().to_string(),
     }
 }
 

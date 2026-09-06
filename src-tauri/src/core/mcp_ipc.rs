@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 use tokio::net::UnixListener;
 
-use crate::core::mcp_event::{get_event_bus, get_unix_socket_path, McpMutationEvent};
+use crate::core::mcp_event::{get_event_bus, get_mcp_socket_path, McpMutationEvent};
 use crate::core::mcp_server::PenguinMcpServer;
 use crate::core::repo::AppState;
 
@@ -40,8 +40,8 @@ pub fn start_mcp_event_listeners(app_handle: AppHandle) {
     // 2. Standalone IPC / Embedded MCP Server over Unix domain socket
     let app_socket = Arc::clone(&app);
     tauri::async_runtime::spawn(async move {
+        let socket_path = get_mcp_socket_path();
         // Clean up any existing socket file from previous runs
-        let socket_path = get_unix_socket_path();
         let _ = std::fs::remove_file(&socket_path);
 
         if let Ok(listener) = UnixListener::bind(&socket_path) {
@@ -50,7 +50,7 @@ pub fn start_mcp_event_listeners(app_handle: AppHandle) {
                 use std::os::unix::fs::PermissionsExt;
                 if let Ok(metadata) = std::fs::metadata(&socket_path) {
                     let mut perms = metadata.permissions();
-                    perms.set_mode(0o600); // Read/write only for owner.
+                    perms.set_mode(0o700);
                     let _ = std::fs::set_permissions(&socket_path, perms);
                 }
             }
