@@ -1,10 +1,4 @@
-use argon2::{
-    password_hash::{
-        rand_core::{OsRng, RngCore},
-        PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
-    },
-    Argon2,
-};
+use argon2::{password_hash::phc::PasswordHash, Argon2, PasswordHasher, PasswordVerifier};
 use axum::{
     extract::{ConnectInfo, Request, State},
     middleware::Next,
@@ -14,6 +8,7 @@ use axum::{
     extract::{FromRef, FromRequestParts},
     http::{header, request::Parts},
 };
+use rand_core_06::{OsRng, RngCore};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -86,10 +81,9 @@ pub fn generate_opaque_token() -> String {
 }
 
 pub fn hash_password(password: &str) -> Result<String, ApiError> {
-    let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
     argon2
-        .hash_password(password.as_bytes(), &salt)
+        .hash_password(password.as_bytes())
         .map(|h| h.to_string())
         .map_err(|e| ApiError::Internal(format!("Password hashing failed: {e}")))
 }
