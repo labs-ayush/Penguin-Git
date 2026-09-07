@@ -55,7 +55,7 @@ importers:
         specifier: ^6.1.1
         version: 6.1.1(vite@8.2.1)
       eslint:
-        specifier: ^10.9.1
+        specifier: ^10.8.0
         version: 10.10.0
       eslint-plugin-react-hooks:
         specifier: ^7.1.1
