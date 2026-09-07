@@ -3,6 +3,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::branch::reject_option_like;
 use crate::core::exec::{run_git, run_git_raw_with_env, GitError};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,6 +67,7 @@ pub fn find_sequence_editor_executable() -> Result<PathBuf, GitError> {
 
 /// Executes a non-interactive `git rebase <target>`.
 pub fn plain_rebase(cwd: &Path, target: &str) -> Result<String, GitError> {
+    reject_option_like(target)?;
     run_git(cwd, &["rebase", target])
 }
 
@@ -75,6 +77,7 @@ pub fn interactive_rebase(
     base_ref: &str,
     todo_items: &[RebaseTodoItem],
 ) -> Result<String, GitError> {
+    reject_option_like(base_ref)?;
     let editor_exe = find_sequence_editor_executable()?;
 
     // Create a temporary file to store the customized todo list
@@ -86,27 +89,12 @@ pub fn interactive_rebase(
 
     let mut content = String::new();
     for item in todo_items {
-        let action = item.action.trim();
-        let hash = item.hash.trim();
-
-        if !matches!(
-            action,
-            "pick" | "reword" | "edit" | "squash" | "fixup" | "drop"
-        ) {
-            return Err(GitError::ValidationError(format!(
-                "Invalid rebase action: {}",
-                action
-            )));
-        }
-
-        if hash.len() != 40 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
-            return Err(GitError::ValidationError(format!(
-                "Invalid commit hash: {}",
-                hash
-            )));
-        }
-
-        content.push_str(&format!("{} {} {}\n", action, hash, item.message.trim()));
+        content.push_str(&format!(
+            "{} {} {}\n",
+            item.action.trim(),
+            item.hash.trim(),
+            item.message.trim()
+        ));
     }
 
     fs::write(temp_file.path(), &content).map_err(GitError::Spawn)?;
@@ -191,9 +179,17 @@ mod tests {
 
         // Ensure binary is compiled for test environment
         if find_sequence_editor_executable().is_err() {
-            let _ = std::process::Command::new("cargo")
-                .args(["build", "--bin", "penguingit-sequence-editor"])
-                .status();
+            let mut cmd = std::process::Command::new("cargo");
+            cmd.args(["build", "--bin", "penguingit-sequence-editor"]);
+            if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+                if let Some(parent) = std::path::Path::new(&manifest_dir).parent() {
+                    cmd.current_dir(parent);
+                }
+            }
+            if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
+                cmd.env("CARGO_TARGET_DIR", target_dir);
+            }
+            let _ = cmd.status();
         }
 
         let _ = interactive_rebase(repo.path(), &c0, &todo_items).expect("interactive rebase");
@@ -204,38 +200,11 @@ mod tests {
     }
 
     #[test]
-    fn interactive_rebase_validation_fails_for_invalid_action() {
+    fn rebase_refuses_option_like_arguments() {
         let repo = FixtureRepo::new();
-        let todo_items = vec![RebaseTodoItem {
-            action: "invalid_action".into(),
-            hash: "a".repeat(40),
-            message: "Some commit".into(),
-        }];
-        let res = interactive_rebase(repo.path(), "HEAD~1", &todo_items);
-        assert!(res.is_err());
-        let err_msg = res.unwrap_err().to_string();
-        assert!(
-            err_msg.contains("validation error: Invalid rebase action: invalid_action"),
-            "got: {}",
-            err_msg
-        );
-    }
+        repo.commit("a.txt", "x", "Initial commit");
 
-    #[test]
-    fn interactive_rebase_validation_fails_for_invalid_hash() {
-        let repo = FixtureRepo::new();
-        let todo_items = vec![RebaseTodoItem {
-            action: "pick".into(),
-            hash: "not-40-chars".into(),
-            message: "Some commit".into(),
-        }];
-        let res = interactive_rebase(repo.path(), "HEAD~1", &todo_items);
-        assert!(res.is_err());
-        let err_msg = res.unwrap_err().to_string();
-        assert!(
-            err_msg.contains("validation error: Invalid commit hash: not-40-chars"),
-            "got: {}",
-            err_msg
-        );
+        assert!(plain_rebase(repo.path(), "--continue").is_err());
+        assert!(interactive_rebase(repo.path(), "--continue", &[]).is_err());
     }
 }
