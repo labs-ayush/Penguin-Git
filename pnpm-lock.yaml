@@ -36,13 +36,8 @@ importers:
         specifier: ^8.3.0
         version: 8.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       zustand:
-<<<<<<< HEAD
-        specifier: ^5.0.14
-        version: 5.0.14(@types/react@19.2.18)(react@19.2.8)
-=======
         specifier: ^5.0.15
-        version: 5.0.15(react@19.2.8)
->>>>>>> main
+        version: 5.0.15(@types/react@19.2.18)(react@19.2.8)
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -2508,11 +2503,7 @@ snapshots:
 
   zod@4.4.3: {}
 
-<<<<<<< HEAD
-  zustand@5.0.14(@types/react@19.2.18)(react@19.2.8):
-=======
-  zustand@5.0.15(react@19.2.8):
->>>>>>> main
+  zustand@5.0.15(@types/react@19.2.18)(react@19.2.8):
     optionalDependencies:
       '@types/react': 19.2.18
       react: 19.2.8
