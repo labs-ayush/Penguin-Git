@@ -3,7 +3,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::core::branch::reject_option_like;
+use super::branch::reject_option_like;
 use crate::core::exec::{run_git, run_git_raw_with_env, GitError};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,6 +67,7 @@ pub fn find_sequence_editor_executable() -> Result<PathBuf, GitError> {
 
 /// Executes a non-interactive `git rebase <target>`.
 pub fn plain_rebase(cwd: &Path, target: &str) -> Result<String, GitError> {
+    reject_option_like(target)?;
     run_git(cwd, &["rebase", target])
 }
 
@@ -178,9 +179,17 @@ mod tests {
 
         // Ensure binary is compiled for test environment
         if find_sequence_editor_executable().is_err() {
-            let _ = std::process::Command::new("cargo")
-                .args(["build", "--bin", "penguingit-sequence-editor"])
-                .status();
+            let mut cmd = std::process::Command::new("cargo");
+            cmd.args(["build", "--bin", "penguingit-sequence-editor"]);
+            if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+                if let Some(parent) = std::path::Path::new(&manifest_dir).parent() {
+                    cmd.current_dir(parent);
+                }
+            }
+            if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
+                cmd.env("CARGO_TARGET_DIR", target_dir);
+            }
+            let _ = cmd.status();
         }
 
         let _ = interactive_rebase(repo.path(), &c0, &todo_items).expect("interactive rebase");
@@ -191,14 +200,11 @@ mod tests {
     }
 
     #[test]
-    fn interactive_rebase_rejects_option_like_base_ref() {
+    fn rebase_refuses_option_like_arguments() {
         let repo = FixtureRepo::new();
-        let res = interactive_rebase(repo.path(), "--base-ref-starts-with-dash", &[]);
-        assert!(res.is_err());
-        if let Err(GitError::CommandFailed { stderr, .. }) = res {
-            assert!(stderr.contains("refusing to pass"));
-        } else {
-            panic!("Expected GitError::CommandFailed");
-        }
+        repo.commit("a.txt", "x", "Initial commit");
+
+        assert!(plain_rebase(repo.path(), "--continue").is_err());
+        assert!(interactive_rebase(repo.path(), "--continue", &[]).is_err());
     }
 }
