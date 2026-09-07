@@ -34,6 +34,7 @@ pub fn commit(
 
 /// The message of an existing commit, for pre-filling the amend editor.
 pub fn commit_message(repo_path: &Path, hash: &str) -> Result<String, GitError> {
+    reject_option_like(hash)?;
     Ok(
         run_git(repo_path, &["log", "-1", "--pretty=format:%B", hash])?
             .trim_end()
@@ -305,6 +306,7 @@ mod tests {
         let repo = FixtureRepo::new();
         let hash = repo.commit("a.txt", "x", "Initial commit");
 
+        assert!(commit_message(repo.path(), "--invalid-hash").is_err());
         assert!(cherry_pick(repo.path(), "--continue").is_err());
         assert!(revert(repo.path(), "--abort").is_err());
         assert!(reset(repo.path(), "--hard", ResetMode::Soft).is_err());
