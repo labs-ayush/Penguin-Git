@@ -26,6 +26,9 @@ pub enum ApiError {
 
     #[error("Database Error: {0}")]
     Sqlx(#[from] sqlx::Error),
+
+    #[error("Too Many Requests: {0}")]
+    TooManyRequests(String),
 }
 
 impl IntoResponse for ApiError {
@@ -43,6 +46,7 @@ impl IntoResponse for ApiError {
                     "Internal server error".to_string(),
                 )
             }
+            ApiError::TooManyRequests(msg) => (StatusCode::TOO_MANY_REQUESTS, msg),
         };
 
         let body = Json(json!({

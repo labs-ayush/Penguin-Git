@@ -107,6 +107,13 @@ pub fn push(
     branch: Option<&str>,
     set_upstream: bool,
 ) -> Result<(), GitError> {
+    if let Some(remote) = remote {
+        reject_option_like(remote)?;
+    }
+    if let Some(branch) = branch {
+        reject_option_like(branch)?;
+    }
+
     let mut args = vec!["push"];
     if set_upstream {
         args.push("-u");
@@ -486,5 +493,8 @@ mod tests {
         remove_remote(repo.path(), "upstream").expect("remove should succeed");
 
         assert!(fetch(repo.path(), Some("--upload-pack=x")).is_err());
+
+        assert!(push(repo.path(), Some("--upload-pack=x"), None, false).is_err());
+        assert!(push(repo.path(), None, Some("--receive-pack=x"), false).is_err());
     }
 }
