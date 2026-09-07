@@ -47,6 +47,23 @@ describe("AI Modals", () => {
 
       expect(tauriBridge.aiExplainCommit).not.toHaveBeenCalled();
     });
+
+    it("sanitizes HTML and renders markdown in explanation", async () => {
+      const maliciousExplanation =
+        'This is **bold** text and <script>alert("XSS")</script><iframe src="javascript:alert(1)"></iframe>.';
+      tauriBridge.aiExplainCommit.mockResolvedValue(maliciousExplanation);
+
+      render(<ExplainCommitModal hash="abc1234" onClose={() => {}} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("bold").tagName).toBe("STRONG");
+        const scriptElement = document.querySelector("script");
+        if (scriptElement) {
+          expect(scriptElement.textContent).not.toContain("XSS");
+        }
+        expect(document.querySelector("iframe")).toBeNull();
+      });
+    });
   });
 
   describe("ExplainBranchModal", () => {
