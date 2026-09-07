@@ -116,3 +116,51 @@
   color: #4ade80;
   margin-right: auto;
 }
+
+.ai-modal-markdown {
+  white-space: normal;
+}
+.ai-modal-markdown p {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+.ai-modal-markdown p:last-child {
+  margin-bottom: 0;
+}
+.ai-modal-markdown h1,
+.ai-modal-markdown h2,
+.ai-modal-markdown h3,
+.ai-modal-markdown h4 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+.ai-modal-markdown ul,
+.ai-modal-markdown ol {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  padding-left: 1.25rem;
+}
+.ai-modal-markdown li {
+  margin-bottom: 0.25rem;
+}
+.ai-modal-markdown code {
+  font-family: var(--font-mono, monospace);
+  background-color: var(--color-bg-tertiary, #1e293b);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+}
+.ai-modal-markdown pre {
+  background-color: var(--color-bg-tertiary, #1e293b);
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  overflow-x: auto;
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+.ai-modal-markdown pre code {
+  padding: 0;
+  background-color: transparent;
+  font-size: 0.875rem;
+}
