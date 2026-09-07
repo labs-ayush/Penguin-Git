@@ -6,10 +6,19 @@ use argon2::{
     Argon2,
 };
 use axum::{
+    extract::{ConnectInfo, Request, State},
+    middleware::Next,
+    response::Response,
+};
+use axum::{
     extract::{FromRef, FromRequestParts},
     http::{header, request::Parts},
 };
+use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use crate::{error::ApiError, AppState};
@@ -116,5 +125,66 @@ mod tests {
 
         assert_eq!(t1.len(), 64);
         assert_ne!(t1, t2);
+    }
+
+    #[test]
+    fn test_rate_limiter() {
+        let limiter = RateLimiter::new(2, Duration::from_secs(1));
+        let key = "127.0.0.1";
+
+        assert!(limiter.check_and_record(key));
+        assert!(limiter.check_and_record(key));
+        assert!(!limiter.check_and_record(key));
+
+        std::thread::sleep(Duration::from_secs(1));
+        assert!(limiter.check_and_record(key));
+    }
+}
+
+#[derive(Debug)]
+pub struct RateLimiter {
+    requests: Mutex<HashMap<String, Vec<Instant>>>,
+    max_requests: usize,
+    window: Duration,
+}
+
+impl RateLimiter {
+    pub fn new(max_requests: usize, window: Duration) -> Self {
+        Self {
+            requests: Mutex::new(HashMap::new()),
+            max_requests,
+            window,
+        }
+    }
+
+    pub fn check_and_record(&self, key: &str) -> bool {
+        let mut map = self.requests.lock().unwrap();
+        let now = Instant::now();
+        let times = map.entry(key.to_string()).or_default();
+        times.retain(|&t| now.duration_since(t) < self.window);
+        if times.len() < self.max_requests {
+            times.push(now);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+pub async fn rate_limit_middleware(
+    State(state): State<Arc<AppState>>,
+    req: Request,
+    next: Next,
+) -> Result<Response, ApiError> {
+    let ip = req
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|ConnectInfo(addr)| addr.ip().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    if state.rate_limiter.check_and_record(&ip) {
+        Ok(next.run(req).await)
+    } else {
+        Err(ApiError::TooManyRequests("Rate limit exceeded".into()))
     }
 }
