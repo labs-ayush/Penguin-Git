@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import DOMPurify from "dompurify";
 import * as git from "../../services/tauriBridge";
 import { useRepoStore } from "../../store/repoStore";
 import "./AiModals.css";
@@ -82,7 +84,9 @@ export default function ExplainCommitModal({ hash, onClose }) {
           ) : error ? (
             <div style={{ color: "var(--accent-red, #f87171)" }}>Error: {error}</div>
           ) : (
-            <div>{explanation}</div>
+            <div className="ai-modal-markdown">
+              <ReactMarkdown>{DOMPurify.sanitize(explanation)}</ReactMarkdown>
+            </div>
           )}
         </div>
 
