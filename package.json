@@ -39,7 +39,7 @@
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
     "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "packageManager": "pnpm@11.15.1",
   "overrides": {
